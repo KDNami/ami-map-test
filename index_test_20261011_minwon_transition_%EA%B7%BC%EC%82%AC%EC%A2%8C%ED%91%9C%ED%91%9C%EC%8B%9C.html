@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#15161a">
+<title>AMI 작업 지도</title>
+<style>
+:root{--green:#10b981;--gray:#7b8794;--sky:#38bdf8;--red:#ef4444;--blue:#3b82f6;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--bg:#f5f7fa}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;color:var(--ink);background:#fff}
+button,input,textarea{font:inherit}
+#map{position:fixed;inset:0;background:#eee}
+.topbar{position:fixed;z-index:20;top:calc(12px + env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}
+.iconbtn{width:48px;height:48px;border:0;border-radius:14px;background:rgba(25,28,34,.94);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.22);font-size:24px;display:grid;place-items:center;pointer-events:auto;cursor:pointer}
+.iconbtn:active{transform:scale(.97)}
+.searchbox{position:fixed;z-index:19;top:calc(68px + env(safe-area-inset-top));left:12px;right:12px;background:#fff;border-radius:14px;box-shadow:0 5px 18px rgba(0,0,0,.18);padding:10px;display:none}
+.searchbox.open{display:flex;gap:8px}
+.searchbox input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none}
+.searchbox button{border:0;border-radius:10px;background:var(--blue);color:#fff;padding:0 14px;font-weight:700}
+.progress{position:fixed;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,86vw);background:rgba(255,255,255,.97);border-radius:18px;padding:20px;box-shadow:0 10px 35px rgba(0,0,0,.25);display:none}
+.progress.show{display:block}
+.progress h3{margin:0 0 8px;font-size:17px}
+.progress p{margin:0 0 12px;color:var(--muted);font-size:13px}
+.bar{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .15s}
+.statusbadge{position:fixed;z-index:18;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:rgba(255,255,255,.95);border:1px solid #e5e7eb;border-radius:999px;padding:7px 12px;font-size:12px;box-shadow:0 3px 12px rgba(0,0,0,.14);white-space:nowrap}
+.location{position:fixed;z-index:18;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));margin-bottom:44px;width:50px;height:50px;border-radius:50%;border:0;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,.2);font-size:24px;color:#111;cursor:pointer}
+.drawer{position:fixed;z-index:40;inset:0 auto 0 0;width:min(330px,86vw);background:#fff;transform:translateX(-105%);transition:transform .22s ease;box-shadow:8px 0 30px rgba(0,0,0,.22);padding:calc(18px + env(safe-area-inset-top)) 18px 18px;overflow:auto}
+.drawer.open{transform:translateX(0)}
+.drawer .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.drawer h2{margin:0;font-size:21px}
+.drawer .close{border:0;background:#eef0f3;border-radius:10px;width:40px;height:40px;font-size:22px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:11px;background:#fafafa}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.drawer .action{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px;text-align:left;margin-top:8px}
+.drawer .note{font-size:12px;line-height:1.6;color:var(--muted);margin-top:18px}
+.overlay{position:fixed;z-index:100;inset:0;background:#f7f8fa;display:none;overflow:hidden}
+.overlay.show{display:flex;flex-direction:column}
+.detail-head{padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:#fff;border-top:3px solid var(--green);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+.detail-head .back{width:42px;height:42px;border:0;border-radius:11px;background:#edf0f3;font-size:23px;flex:0 0 auto}
+.detail-title{min-width:0;flex:1}
+.detail-title h1{font-size:20px;line-height:1.25;margin:0 0 5px;word-break:keep-all}
+.detail-title .addr2{font-size:13px;color:#7b8490;line-height:1.45}
+.detail-body{overflow:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.route{display:flex;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
+.route button{border:0;background:#3b82f6;color:#fff;border-radius:8px;padding:8px 11px;font-weight:700;font-size:13px}
+.meta{background:#fff;padding:10px 14px;border-bottom:1px solid var(--line)}
+.meta .line{font-size:13px;color:#6b7280;margin:3px 0}
+.meta strong{color:#374151}
+.workline{padding:11px 14px;background:#fff;border-bottom:1px solid var(--line);font-size:13px}
+.actionrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 14px;background:#fff}
+.actionrow button{height:54px;border-radius:12px;background:#fff;font-weight:800;font-size:15px;cursor:pointer}
+.btn-reset{border:2px solid #6b7280;color:#59636e}
+.btn-done{border:2px solid #9ca3af;color:#64748b}
+.btn-hold{border:2px solid #38bdf8;color:#0284c7}
+.btn-bad{border:2px solid #ef4444;color:#dc2626}
+.reasonbox{display:none;padding:0 14px 12px;background:#fff}
+.reasonbox.show{display:block}
+.reasonbox textarea{width:100%;min-height:88px;border:2px solid #e5e7eb;border-radius:12px;padding:12px;resize:none;outline:none}
+.reasonbox .save{margin-top:8px;width:100%;height:48px;border:0;border-radius:11px;background:#ef4444;color:#fff;font-weight:800}
+.group-summary{padding:12px 14px;background:#fff;border-bottom:1px solid var(--line);font-size:13px}.group-summary .row{display:grid;grid-template-columns:72px 1fr;gap:8px;margin:5px 0}.group-summary .k{color:#8a929d}.group-summary .v{word-break:break-word}.filterbar{padding:10px 14px;background:#eef6ff;border-top:1px solid #dbeafe;border-bottom:1px solid #dbeafe;font-size:13px;color:#2563eb;font-weight:800}
+.meter-list{padding:12px 14px}
+.meter-card{background:#fff;border:1px solid #e1e5ea;border-radius:14px;padding:12px;margin-bottom:9px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.meter-top{display:flex;align-items:center;gap:8px}
+.meter-num{font-size:16px;font-weight:800;letter-spacing:.2px}
+.copy{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:5px 7px;font-size:11px;color:#64748b}
+.tag{margin-left:auto;padding:4px 7px;border-radius:6px;font-size:11px;font-weight:800}
+.tag.green{color:#059669;background:#ecfdf5}.tag.gray{color:#64748b;background:#f1f5f9}.tag.sky{color:#0284c7;background:#e0f2fe}.tag.red{color:#dc2626;background:#fef2f2}
+.detail-grid{display:grid;grid-template-columns:72px 1fr;gap:7px 10px;margin-top:10px;font-size:13px}
+.detail-grid .k{color:#8a929d}.detail-grid .v{word-break:break-word}
+.dcu{font-weight:800}.dcu .dcu-last2{color:#ef4444 !important;font-weight:900}.dcu-number .dcu-last2{color:#ef4444 !important;font-weight:900}
+.empty{padding:28px 14px;text-align:center;color:#8b95a1}
+.toast{position:fixed;z-index:200;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(20,24,30,.92);color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;display:none;white-space:nowrap}
+.toast.show{display:block}
+@media(min-width:700px){.drawer{width:360px}.detail-head,.route,.meta,.workline,.actionrow,.reasonbox,.filterbar,.meter-list{padding-left:22px;padding-right:22px}.detail-body{max-width:760px;width:100%;margin:auto}}
+
+/* ===== 사용자 요청 UI 보정 ===== */
+.drawerScrim{position:fixed;z-index:39;inset:0;background:rgba(0,0,0,.35);display:none}
+.drawerScrim.open{display:block}
+.drawer{width:min(86vw,365px);padding:calc(24px + env(safe-area-inset-top)) 24px 20px}
+.drawer h2{font-size:19px}
+.drawer hr{border:0;border-top:1px solid #e5e7eb;margin:16px 0 25px}
+.section-label{font-size:13px;font-weight:800;color:#68717d;margin:0 0 8px 10px}
+.branch-select{width:100%;height:54px;border:0;border-radius:13px;background:#3d414b;color:#fff;padding:0 15px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
+.branch-checks{margin-top:8px;background:#3d414b;border-radius:13px;padding:8px 14px}
+.branch-check{display:flex;align-items:center;gap:9px;color:#fff;font-size:15px;padding:7px 0}
+.branch-check input{width:20px;height:20px;accent-color:#60a5fa}
+.list-select{width:100%;height:54px;border:0;border-radius:13px;background:#24418f;color:#fff;padding:0 15px;font-size:15px;font-weight:800;text-align:left}
+.drawer-action{width:100%;border:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:17px 8px;text-align:left;font-size:15px;font-weight:800}
+.drawer-action.blue{color:#1f55bf}.drawer-action.red{color:#d83232}
+.version{font-size:10px;color:#a6abb2;text-align:right;margin-top:28px}
+.branchModal{position:fixed;z-index:120;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-start;justify-content:center;padding:98px 14px 14px}
+.branchModal.show{display:flex}
+.branchPanel{width:100%;max-height:calc(100vh - 120px);overflow:auto;background:#505056;color:#fff;border-radius:28px;box-shadow:0 15px 35px rgba(0,0,0,.35)}
+.branchItem{height:72px;border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:18px;font-weight:650}
+.branchItem:last-child{border-bottom:0}
+.radio{width:30px;height:30px;border:3px solid #fff;border-radius:50%;display:grid;place-items:center}
+.radio.on{border-color:#3b82f6}.radio.on:after{content:"";width:14px;height:14px;background:#3b82f6;border-radius:50%}
+.type{display:inline-flex;align-items:center;justify-content:center;background:#3b82f6;color:#fff;border-radius:6px;padding:6px 7px;font-size:11px;font-weight:850;flex:0 0 auto}
+.meter-top{gap:7px}.meter-num{font-size:15px}.meter-num .meter-last2{color:#ef4444 !important;font-weight:900}
+.dcu .dcu-last2{color:#ef4444 !important;font-weight:900}.dcu-number .dcu-last2{color:#ef4444 !important;font-weight:900}
+.copy{padding:5px 7px;font-size:10px}
+.detail-head{padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:9px}
+.detail-title h1{font-size:18px}.detail-title .addr2{font-size:12px}
+.meta .line,.workline,.detail-grid,.group-summary{font-size:12px}
+.actionrow{grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px}
+.actionrow button{height:54px;font-size:14px}
+.filterbar{font-size:13px}
+
+
+/* ===== 2026-08-25 추가 UI ===== */
+.drawer .head{min-height:40px;margin-bottom:8px}
+.drawer .head>span{flex:1}
+.district-label{margin-top:18px}
+.district-checks{margin-bottom:2px}
+.address-row{display:flex;align-items:center;gap:6px;min-width:0}
+.address-row>h1,.address-row>div{min-width:0;flex:1}
+.main-address h1{font-size:20px;margin:0;line-height:1.25}
+.sub-address{margin-top:3px}
+.sub-address>div{font-size:12px;color:#8b929b;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:17px}
+.addr-copy{flex:0 0 auto;border:1px solid #d7dbe0;background:#fff;border-radius:6px;color:#89919b;font-size:10px;padding:4px 6px}
+.filterbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#eaf5ff;border-top:1px solid #d5eafe;border-bottom:1px solid #d5eafe;color:#2563eb;font-size:14px;font-weight:850}
+.dcu-bar{display:flex;align-items:center;gap:8px;min-width:0}
+.dcu-bar .dcu-number{font-size:16px;letter-spacing:.1px;word-break:break-all}
+.dcu-bar .copy{color:#64748b;background:#fff}
+.detail-search{display:flex;gap:6px;padding:8px 14px;background:#fff;border-bottom:1px solid #e5e7eb}
+.detail-search input{flex:1;min-width:0;height:38px;border:1px solid #dfe3e8;border-radius:9px;padding:0 10px;font-size:13px;outline:none}
+.detail-search button{width:38px;height:38px;border:1px solid #dfe3e8;border-radius:9px;background:#f7f8fa;color:#6b7280;font-size:18px}
+.meter-card{padding:10px 11px}
+.meter-top{gap:6px}
+.meter-check{width:19px;height:19px;accent-color:#3b82f6;flex:0 0 auto}
+.meter-card .type{font-size:10px;padding:5px 6px}
+.meter-num{font-size:16px}
+.meter-bad{margin-left:auto;border:1px solid #ef4444;background:#fff7f7;color:#dc2626;border-radius:6px;padding:4px 6px;font-size:10px;font-weight:800}
+.meter-bad.on{background:#ef4444;color:#fff}
+.meter-home{margin:5px 0 3px 25px;font-size:11px;color:#8b929b;line-height:1.35;min-height:15px}
+.meter-extra{margin-left:25px;font-size:9.5px;color:#9aa1aa;line-height:1.55;word-break:break-word}\n.transition-extra{margin-left:25px;font-size:9.5px;color:#8f98a3;line-height:1.55;word-break:break-word;margin-top:2px}\n.complaint-extra{margin-left:25px;font-size:9.5px;color:#8f98a3;line-height:1.55;word-break:break-word;margin-top:2px}
+.meter-extra b{font-weight:600;color:#858d97}
+.meter-card.is-meter-bad{border-color:#efb4b4}
+.no-meter{padding:20px 4px;text-align:center;color:#9aa1aa;font-size:12px}
+@media(min-width:700px){.detail-head,.route,.meta,.workline,.actionrow,.reasonbox,.filterbar,.meter-list,.detail-search{padding-left:22px;padding-right:22px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="topbar">
+  <button class="iconbtn" id="menuBtn" aria-label="메뉴">☰</button>
+  <button class="iconbtn" id="searchBtn" aria-label="검색">⌕</button>
+</div>
+<div class="searchbox" id="searchBox">
+  <input id="searchInput" placeholder="주소 또는 계기번호 검색">
+  <button id="searchGo">검색</button>
+</div>
+<button class="location" id="locationBtn" aria-label="현재 위치">◎</button>
+<div class="statusbadge" id="statusBadge">지도 준비 중…</div>
+
+
+<aside class="drawer" id="drawer">
+  <div class="head"><span></span><button class="close" id="drawerClose">×</button></div>
+  <hr>
+  <div class="section-label">지사</div>
+  <button class="branch-select" id="branchSelect"><span id="branchSelectedText">노원도봉지사</span><span>▼</span></button>
+  <div class="branch-checks" id="branchChecks"></div>
+  <div class="section-label district-label">구</div>
+  <div class="branch-checks district-checks" id="districtChecks"></div>
+  <hr>
+  <div class="section-label">리스트</div>
+  <button class="list-select" id="listBtn">리스트 ▾</button>
+  <hr>
+  <button class="drawer-action blue" id="refreshBtn">↻ &nbsp; 새로고침 (완료 현황 갱신)</button>
+  <button class="drawer-action blue" id="resetAllBtn">↟ &nbsp; 작업상태 전체 다시 받기</button>
+  <hr>
+  <button class="drawer-action red" id="logoutBtn">⇥ &nbsp; 로그아웃</button>
+  <div class="version">v20260823.1</div>
+</aside>
+<div class="drawerScrim" id="drawerScrim"></div>
+<div class="branchModal" id="branchModal"><div class="branchPanel" id="branchPanel"></div></div>
+
+
+<div class="progress" id="progress">
+  <h3>주소를 지도 좌표로 변환 중</h3>
+  <p id="progressText">준비 중…</p>
+  <div class="bar"><i id="progressBar"></i></div>
+</div>
+
+<section class="overlay" id="detailOverlay">
+  <header class="detail-head">
+    <button class="back" id="detailClose">‹</button>
+    <div class="detail-title">
+      <div class="address-row main-address"><h1 id="detailTitle">주소</h1><button type="button" class="addr-copy" id="oldAddrCopy">복사</button></div>
+      <div class="address-row sub-address"><div id="detailAddress"></div><button type="button" class="addr-copy" id="newAddrCopy">복사</button></div>
+    </div>
+  </header>
+  <div class="detail-body">
+    <div class="route">
+      <button id="tmapBtn">티맵</button>
+      <button id="naverBtn">네이버</button>
+      <button id="kakaoBtn">카카오</button>
+    </div>
+    <div class="meta">
+      <div class="line"><strong id="statusText">미처리</strong> · <span id="workDate">작업일 미기록</span></div>
+      <div class="line">계기번호 <strong id="meterCountText">0개</strong></div>
+    </div>
+    <div class="actionrow">
+      <button class="btn-done" id="doneBtn">✓ 완료</button>
+      <button class="btn-hold" id="holdBtn">Ⅱ 보류</button>
+      <button class="btn-bad" id="badBtn">✕ 불가</button>
+    </div>
+    <div class="reasonbox" id="reasonBox">
+      <textarea id="reasonInput" placeholder="불가 사유를 수기로 입력하세요."></textarea>
+      <button class="save" id="reasonSave">불가 사유 저장</button>
+    </div>
+    <div class="filterbar" id="filterbarText">DCUID</div>
+    <div class="detail-search">
+      <input id="meterSearchInput" placeholder="계기번호 검색">
+      <button id="meterSearchClear">×</button>
+    </div>
+    <div class="meter-list" id="meterList"></div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+const KAKAO_JS_KEY = "여기에_카카오_JavaScript_키_입력";
+
+const DATA = [{"지사":"민원","타입":"","계기번호":"29250015851","DCUID":"","변대주":"","인입주":"","검침일":"2","주소":"시대문구 연희로11바길 22-7 （연희동 116-38）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0781-8559","고객명":"","민원중계내역":"현재 공가로 집주인 다른곳에 거주하고 있용 방문전 약속 필수 010-5536- 2841대문 내 계량기 두개 있어시 방문김친 또는 고객 지-가검친 해주셔야 하는 데 집율 언재까지 비워둘지 예정이 없고 일부러 전기검친 때문에 다른곳에시 방문해야 해시 봄편하시다 학원격 當리 설치해달라심","변대주명":"","검침원":"성자영","검침원연락처":"010-4716-2038","통신방식":""},{"지사":"민원","타입":"","계기번호":"26190341580","DCUID":"","변대주":"","인입주":"","검침일":"2","주소":"시대문구 연희로11바길 22-7 （연희동 116-38）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0781-8540","고객명":"","민원중계내역":"현재 공가로 집주인 다른곳에 거주하고 있융 방문전 약속 필수 010-5536- 2841 대문 내 계량기 두개 있어시 방문김친 또는 고객 지-가검친 해주셔야 하는 데 집올 언재까지 비워둘지 예정이 없고 일부러 전기검친 때문에 다른곳에시 방문해야 해시 블편하시다 함원적 빨리 설치해달라심","변대주명":"","검침원":"성자영","검침원연락처":"010-4716-2038","통신방식":""},{"지사":"민원","타입":"","계기번호":"02190055258","DCUID":"","변대주":"","인입주":"","검침일":"8","주소":"은평구 진홍로1다길 5 （역촌동 33-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5655-5090","고객명":"","민원중계내역":": ᄊ이사5 미등록 계기!【저압내데이터 수신 營량】 - 파워晉-레너 실시간 데이터 확인1가 - 모멤북량 점 검 필요 - 오류발생일 2025.02.12 - 고객에게 조치 일 정 능 사전안내 필요","변대주명":"","검침원":"김윤신","검침원연락처":"010-2008-8247","통신방식":""},{"지사":"민원","타입":"","계기번호":"26190414439","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"은평구 수색로 350-29 （수색동 신- 2-17）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1954-2281","고객명":"","민원중계내역":"계기 골-목안 끝-집 옥내 고위치 부착됨원격검친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"26190335711","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"은평구 수색로24길 30-8 （수색동 296-37）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1954-7062","고객명":"","민원중계내역":"계기 현관내 외벽 부착됨 가게 휴업후 집에 자주없습니다고객 요청 원격 검친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"26190335712","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"은평구 수색로24길 30-8 （수색동 296-37）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1954-7044","고객명":"","민원중계내역":"계기 현관내 외벽 부착됨 가게 휴업후 집에 자주없습니다고객 요청 원격 검친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"26190335707","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"은평구 수색로24길 30-8 （수색동 296-37）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1954-7035","고객명":"","민원중계내역":"계기 현관내 외벽 부착됨 가게 휴업후 집에 자주없습니다고객 요청 원격 검친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"24530248741","DCUID":"","변대주":"","인입주":"","검침일":"1","주소":"은평구 웅암로22길 7-6 （용암둥 427-145）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-4384-0253","고객명":"","민원중계내역":"실시간 원격검친 블가로 북편하다며 빠른 조치 요청","변대주명":"","검침원":"송하영","검침원연락처":"010-6281-2945","통신방식":""},{"지사":"민원","타입":"","계기번호":"99530106696","DCUID":"","변대주":"","인입주":"","검침일":"25","주소":"은평구 가좌로6길 6 （웅암동 675-3）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1254-7897","고객명":"","민원중계내역":"고객. 한전 파워플래너 사용을 위한 원격검친 요청. 완료 시 고객 안내 부탁드 립니다.","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"02250034777","DCUID":"","변대주":"","인입주":"","검침일":"24","주소":"서대문구 영천동 5-129","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6252-4648","고객명":"","민원중계내역":"계기 천연동 항못길 중간 쉼타 （500미터） 건물옆 화단안 철박스 부착됨검친시 차량진입 롱재로 검친 어렵습니다원격검친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"56170849271","DCUID":"","변대주":"","인입주":"","검침일":"3","주소":"서대문구 홍제원3길 11 （홍재동 137-6）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-4081-2798","고객명":"","민원중계내역":"0 고객 자옳원격검친에시 원격검친으로 검친방법 변경 요청 0 이동롱신전원 공용화센터-453（260715）","변대주명":"","검침원":"임정미","검침원연락처":"010-9767-2312","통신방식":""},{"지사":"민원","타입":"","계기번호":"24190240960","DCUID":"","변대주":"","인입주":"","검침일":"2","주소":"서대문구 연희로 38 （연희동 353-89）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5271-6086","고객명":"","민원중계내역":"0 고객 자율원격검친에시 원격검친으로 검친방법 변경 요청 0 이동룡신전원 공용화센터-453（260715）","변대주명":"","검침원":"임정미","검침원연락처":"010-9767-2312","통신방식":""},{"지사":"민원","타입":"","계기번호":"35190013106","DCUID":"","변대주":"","인입주":"","검침일":"11","주소":"은평구 통일로80가길 19-1 （불광동 377-9）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-3029-8792","고객명":"","민원중계내역":"계기 대문안 옥외 상단 고위치 부착됨원격김친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"05530134844","DCUID":"","변대주":"","인입주":"","검침일":"10","주소":"서대문구 홍은동 11-481","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6203-7176","고객명":"","민원중계내역":"계기 어린이 공원 안 화단 철함 부착됨공원 미 인가로 공원 벤스로 봉문됨원격 김친 요청합니다계기위치 :크로바 부동산향","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"06250028779","DCUID":"","변대주":"","인입주":"","검침일":"8","주소":"서대문구 연희로10길 82-9 （연희동 28-3）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0945-9112","고객명":"","민원중계내역":"계기 골목 끝 좌벽 외벽 고위치 부착 됨원격김친 요청 합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"56170848494","DCUID":"","변대주":"","인입주":"","검침일":"1","주소":"서대문구 홍은동 279-10","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-2342-1779","고객명":"","민원중계내역":"고위치 계기. 원격 요청","변대주명":"","검침원":"정지훈","검침원연락처":"010-5383-8585","통신방식":""},{"지사":"민원","타입":"","계기번호":"45530062414","DCUID":"","변대주":"","인입주":"","검침일":"24","주소":"은평구 은평로13길 22 （녹번동 155-8）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0568-1316","고객명":"","민원중계내역":"1며저 압데이 터 수신 볼량】 - 파워플래너 실시 간 데이 터 확인북가 - 모멤-블량 점검 필요 - 오류발생일 12026.08.07 - 고객에게 조치일정 능 사전안내 필요. 3세자재수급 여 건에 따라 1〜2개월 소요 될!. 수 있옹 안내/ 최대한 科른조치요 청/- 3 ？ 비 기사님 방문전 연락요표","변대주명":"","검침원":"임정미","검침원연락처":"010-9767-2312","통신방식":""},{"지사":"민원","타입":"","계기번호":"76450020351","DCUID":"","변대주":"","인입주":"","검침일":"22","주소":"은평구 불광로 3 （대조등 25-8）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-2656-0522","고객명":"","민원중계내역":"골목봉로 고위치계기 있고 옆에 자재있어 김친시 떨어짐위험있습니다","변대주명":"","검침원":"장영례","검침원연락처":"010-3205-6671","통신방식":""},{"지사":"민원","타입":"","계기번호":"02450085354","DCUID":"","변대주":"","인입주":"","검침일":"9","주소":"은평구 증산로 303 （증산동 249）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1633-4494","고객명":"","민원중계내역":"지하2충안에 있고 계량기가숨어있어 사다리이용하여 김친 꼭부탁합니다","변대주명":"","검침원":"이정원","검침원연락처":"010-8634-5685","통신방식":""},{"지사":"민원","타입":"","계기번호":"02190165092","DCUID":"","변대주":"","인입주":"","검침일":"1","주소":"서대문구 연희로25길 69 （연희 등 86-11）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5703-1261","고객명":"","민원중계내역":"［저압1？ 데이터 수신 블량］ - 파워플래너 실시간 데이터 확인봄가 - 모멤-블량 점검 필요 - 오류발생일 ：2026,08,05 - 고객에게 조치일정 능 사전안내 필요-3 ！ 비자재수급 여 건에 따라 1〜2개월 소요 될!. 수 있음 안내","변대주명":"","검침원":"성자영","검침원연락처":"010-4716-2038","통신방식":""},{"지사":"민원","타입":"","계기번호":"92190001363","DCUID":"","변대주":"","인입주":"","검침일":"3","주소":"서대문구 통일로37가길 21 （홍재동 313-30）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1477-2648","고객명":"","민원중계내역":"원격김친 실시간사용량이 확인 안되고 있옹","변대주명":"","검침원":"최미에","검침원연락처":"010-5212-6404","통신방식":""},{"지사":"민원","타입":"","계기번호":"67190357605","DCUID":"","변대주":"","인입주":"","검침일":"5","주소":"은평구 진관동 산 103-3","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5984-3586","고객명":"","민원중계내역":"계기 한옥마을 생데 놀이터 입구화단안 철함 박스 부착됨원격김친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"06450164713","DCUID":"","변대주":"","인입주":"","검침일":"5","주소":"은평구 연서로50길 20-5 （진관동 169-14)","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5737-1955","고객명":"","민원중계내역":"계기 대문안 외벽 고위치 부착됨고객 자주 부재중 원격김친 요청합니다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"05465037907","DCUID":"","변대주":"","인입주":"","검침일":"5","주소":"은평구 진관동 144","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6164-6563","고객명":"","민원중계내역":"（1.350-20260507-010077 재인입 】 비가오면 지하에 물이차시 互어갈 수 없 어 김친율 할 수 없다고함, 매번 동일건으로 김친율 재대로 함 수 없다며 원격 으로 빠른 교체요구'.' 옹대 북필요","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"96190405119","DCUID":"","변대주":"","인입주":"","검침일":"3","주소":"은평구 가좌로 309-7 （신사동 200-81）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5975-0952","고객명":"","민원중계내역":"6충옥상율라가시 김친/ 매번 집앞에시 전화후방문/ 원격해세요","변대주명":"","검침원":"장영 례","검침원연락처":"010-3205-6671","통신방식":""},{"지사":"민원","타입":"","계기번호":"05455118467","DCUID":"","변대주":"","인입주":"","검침일":"4","주소":"은평구 연서로 150 （대조동 224-3）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-2169-9787","고객명":"","민원중계내역":"계기 나무함속 상단 고위치 부착됨계기앞 항상 입간판 장애 원격김친요청합니 다","변대주명":"","검침원":"김희진","검침원연락처":"010-5397-6938","통신방식":""},{"지사":"민원","타입":"","계기번호":"91550070271","DCUID":"","변대주":"","인입주":"","검침일":"15","주소":"마포구 와우산로29다길 20 （시교동 334-10）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6115-4200","고객명":"","민원중계내역":"원적심.치는 됐는데 룡신이 안되고있습니다. 긴급으로 부탁드립니다.","변대주명":"","검침원":"박성춘","검침원연락처":"010-3013-8346","통신방식":""},{"지사":"민원","타입":"","계기번호":"35450083099","DCUID":"","변대주":"","인입주":"","검침일":"4","주소":"용산구 독서당로35길 24 （한남동 60-28）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5907-9812","고객명":"","민원중계내역":"가나대사관저-대사관 미리전화02-749-8982비시실 전화1,2일전 전화후 방문","변대주명":"","검침원":"김정임","검침원연락처":"010-5307-6810","통신방식":""},{"지사":"민원","타입":"","계기번호":"05465036318","DCUID":"","변대주":"","인입주":"","검침일":"4","주소":"용산구 유엔빌리지길 188-16 （한남동 15-10）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-2187-5578","고객명":"","민원중계내역":"［마케팅상담센터 인입】 파워물래너 이용율 위한 원격검친 및 모맹심.치 요청드립니디-.. 최소 2〜3개월이상 시간 소요됨율 안내","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450163554","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0251-7885","고객명":"","민원중계내역":"［고객요청 원격 신청】 - 계기위치 : 지하1충 내 （비번 : 1234八 - 현관 비번 : 7637#","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450162907","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 신촌로 242《아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9134","고객명":"","민원중계내역":"［고객요청 원격 신청】 - 계기위치 : 1충 현관 옆 상가 내","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"06450214701","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9161","고객명":"","민원중계내역":"［고객요청 원격 신청】 - 계기위치 : 4충 내 （비번 : 1234하 - 1충 현관비번 : 763”","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450163063","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9152","고객명":"","민원중계내역":"【고객요청 원격 신청】 - 계기위치 : 3충 내 （비번 : 1234이 - 1충 현관비번 : 7的 ?","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450160383","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9143","고객명":"","민원중계내역":"【고객요청 원격 신청】 - 계기위치 : 2충 내 （비번 : 1234，） - 1충 현관비번 : 7637*","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450164587","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 신촌로 242 （아현능 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9170","고객명":"","민원중계내역":"【고객요청 원격 신청】 - 계기위치 : 5충 내 （비번 : 12341 - 1충 현관비번 : 7637*","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450164287","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현등 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9198","고객명":"","민원중계내역":"【고객요청 원격 신청】 - 계기위치 : 7충 내 （비번 : 1234이 - 1충 현관비번 : 7的 ?","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"26450161701","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"미.포구 신촌로 242 （아현동 346-4）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9189","고객명":"","민원중계내역":"【고객요청 원격 신청】 - 계기위치 : 6충 내 （비번 : 1234ᄀ - 1충 현관비번 : 7的乃","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"06450183230","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 아현동 346-4","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6182-9116","고객명":"","민원중계내역":"［고객요청 원격 신청］ - 계기위치 : 1충 현관 내 （비번7的7이","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098826","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3528","고객명":"","민원중계내역":"1고위치 원격신청］ - 사디-리 놓고 검친 - 계기위치 : 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450101416","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3546","고객명":"","민원중계내역":"【고위치 원격신청］ - 사디-리 놓고 검친 - 계기위치 : 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098829","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3519","고객명":"","민원중계내역":"【고위치 원격신청】 - 사디-리 놓고 검친 - 계기위치 : 외벽 은색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450101439","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3500","고객명":"","민원중계내역":"［고위치 원적신청】 - 사다리 놓고 검친 - 계기위치: 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098801","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3564","고객명":"","민원중계내역":"【고위치 원격신청】 - 사디-리 놓고 검친 - 계기위치: 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098924","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3537","고객명":"","민원중계내역":"［고위치 원격신청】 - 사디-리 놓고 검친 - 계기위치: 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098802","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3555","고객명":"","민원중계내역":"【고위 치 원격 신청】 - 사디-리 놓고 검친 - 계기 위치 : 외벽 온색 학 고위 치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098797","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴래방로9길 62 （아현동 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3485","고객명":"","민원중계내역":"【고위치 원격신청】 - 사디-리 놓고 검친 - 계기위치: 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"79450098798","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"마포구 굴레방로9길 62 （아현등 346-33）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-6259-3298","고객명":"","민원중계내역":"［고위치 원격신청】 - 사디-리 놓고 검친 - 계기위치: 외벽 온색 학 고위치.","변대주명":"","검침원":"손종우","검침원연락처":"010-4270-5395","통신방식":""},{"지사":"민원","타입":"","계기번호":"37190120286","DCUID":"","변대주":"","인입주":"","검침일":"2","주소":"용산구 원효로 245 （원효로1가 53-1）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5479-7486","고객명":"","민원중계내역":"중계기용 으로 옥상 천 사다리이용 으로 떨어짐및 기타위험요소 산재로긴급 원격 전환 요 청 중계 합니다","변대주명":"","검침원":"김성준","검침원연락처":"010-3731-4055","통신방식":""},{"지사":"민원","타입":"","계기번호":"35450276758","DCUID":"","변대주":"","인입주":"","검침일":"4","주소":"마포구 방울내로7길 26 （망원동 470-30）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-5660-0709","고객명":"","민원중계내역":"동일지 번 전체 원격김친 가능여부 룡화요청합니다","변대주명":"","검침원":"김성준","검침원연락처":"010-3731-4055","통신방식":""},{"지사":"민원","타입":"","계기번호":"05455274345","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"용산구 한강대로15길 12 （한강로3가 40-141）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1969-6560","고객명":"","민원중계내역":"고위치/김친營가/원격신청계기 （천학속） 잠겨있용","변대주명":"","검침원":"시온주-","검침원연락처":"010-9947-0917","통신방식":""},{"지사":"민원","타입":"","계기번호":"98190222828","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"마포구 월드컵로 40 （시교동 444-9）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-1966-7360","고객명":"","민원중계내역":"［사업소 고객V。디 ［저압내데이터 수신 營량】 - 파워플래너 실시간 데이터 확인營가- 모멤 營량 점검 필요 / 매월 일자벌로 누락과 업로드가 반복 - 7월19일부터 현재까지 데이터 누락 - 고객에게 조치일정 등 사전안내 필요 - 현장 방문후 조치 요방 （ 1〜2 개월소요 안 내）","변대주명":"","검침원":"김성준","검침원연락처":"010-3731-4055","통신방식":""},{"지사":"민원","타입":"","계기번호":"58190017970","DCUID":"","변대주":"","인입주":"","검침일":"26","주소":"미.포구 신촌로16길 24 （노고산동 54-31）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-4881-6975","고객명":"","민원중계내역":"원격요청:원격장애조치후 원격 안돌어움관리인 퇴식 후 거주-관리가 없어 검친어 려용건물주 晉편해 함으로 원격치리 부탁드립니다","변대주명":"","검침원":"안진희","검침원연락처":"010-5393-8474","통신방식":""},{"지사":"민원","타입":"","계기번호":"98190226680","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"용산구 두텁바위로38가길 5 （후암동 412-3）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0259-6415","고객명":"","민원중계내역":"건물주- 원격요청","변대주명":"","검침원":"이미지","검침원연락처":"010-3959-9563","통신방식":""},{"지사":"민원","타입":"","계기번호":"48190188544","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"용산구 두텁바위로38가길 5 （후암동 412-3）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0259-6451","고객명":"","민원중계내역":"건물주- 원격요청","변대주명":"","검침원":"이미지","검침원연락처":"010-3959-9563","통신방식":""},{"지사":"민원","타입":"","계기번호":"24190112158","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"용산구 소월로 178 （용산동2가 1-1806）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0259-2785","고객명":"","민원중계내역":"외부인 방문 꺼려함. 원격요청 하심","변대주명":"","검침원":"이미지","검침원연락처":"010-3959-9563","통신방식":""},{"지사":"민원","타입":"","계기번호":"58190018947","DCUID":"","변대주":"","인입주":"","검침일":"12","주소":"용산구 소월로 182 （용산동2가 산 1-1806）","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"01-0259-2776","고객명":"","민원중계내역":"할너니 흔자 거주-. 문개방 힘듬. 원격신청하심","변대주명":"","검침원":"이미지","검침원연락처":"010-3959-9563","통신방식":""},{"지사":"전환","타입":"","계기번호":"06190563677","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 29","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DD:65:8E","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:DD:65:8E"},{"지사":"전환","타입":"","계기번호":"06190563554","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 29","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DD:65:8E","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:DD:65:8E"},{"지사":"전환","타입":"","계기번호":"06190563616","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 29","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DD:65:8E","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:DD:65:8E"},{"지사":"전환","타입":"","계기번호":"02190172007","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 29","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B6:2F:F7","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:B6:2F:F7"},{"지사":"전환","타입":"","계기번호":"02190092609","DCUID":"0125A59139","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 31","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B9:6F:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A59139","모뎀MAC":"84:72:07:B9:6F:30"},{"지사":"전환","타입":"","계기번호":"69450199974","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 31","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B9:6F:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:B9:6F:30"},{"지사":"전환","타입":"","계기번호":"02190159010","DCUID":"0125A59139","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 31","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B9:6F:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A59139","모뎀MAC":"84:72:07:B9:6F:30"},{"지사":"전환","타입":"","계기번호":"26250001225","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 31","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B9:6F:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:B9:6F:30"},{"지사":"전환","타입":"","계기번호":"67190689464","DCUID":"0125A49339","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 31","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B9:6F:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A49339","모뎀MAC":"84:72:07:B9:6F:30"},{"지사":"전환","타입":"","계기번호":"06190563630","DCUID":"0125A48239","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 8-12","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DD:63:95","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A48239","모뎀MAC":"84:72:07:DD:63:95"},{"지사":"전환","타입":"","계기번호":"02190120797","DCUID":"0125A48239","변대주":"","인입주":"","검침일":"","주소":"중구 청구로6길 8-8","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DC:D2:BB","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0125A48239","모뎀MAC":"84:72:07:DC:D2:BB"},{"지사":"전환","타입":"","계기번호":"69450139600","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-3","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BA:3D:7A","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:BA:3D:7A"},{"지사":"전환","타입":"","계기번호":"02190214915","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-3","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BA:3D:7A","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:BA:3D:7A"},{"지사":"전환","타입":"","계기번호":"02190228532","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구충무로4길 19-3","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:90:25:30","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"E0:AE:ED:90:25:30"},{"지사":"전환","타입":"","계기번호":"06450360602","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-4","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DE:07:00","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:DE:07:00"},{"지사":"전환","타입":"","계기번호":"02190036104","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구충무로4길 19-4","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DE:07:00","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:DE:07:00"},{"지사":"전환","타입":"","계기번호":"29171335323","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-7","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B8:7B:E3","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:B8:7B:E3"},{"지사":"전환","타입":"","계기번호":"02450166390","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-8","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BA:47:45","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:BA:47:45"},{"지사":"전환","타입":"","계기번호":"69450139598","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-9","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BA:3D:7C","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:BA:3D:7C"},{"지사":"전환","타입":"","계기번호":"69450139718","DCUID":"0026R88439","변대주":"","인입주":"","검침일":"","주소":"중구 충무로4길 19-9","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BA:47:43","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026R88439","모뎀MAC":"84:72:07:BA:47:43"},{"지사":"전환","타입":"","계기번호":"02190520775","DCUID":"0025A38141","변대주":"","인입주":"","검침일":"","주소":"중구 퇴계로 180-11","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:30:86:6C","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0025A38141","모뎀MAC":"44:B4:33:30:86:6C"},{"지사":"전환","타입":"","계기번호":"02190191473","DCUID":"0026S31245","변대주":"","인입주":"","검침일":"","주소":"중구 퇴계로 227-2","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:30:87:88","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026S31245","모뎀MAC":"44:B4:33:30:87:88"},{"지사":"전환","타입":"","계기번호":"26190315075","DCUID":"0026S31245","변대주":"","인입주":"","검침일":"","주소":"중구퇴계로 227-2","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:30:87:88","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026S31245","모뎀MAC":"44:B4:33:30:87:88"},{"지사":"전환","타입":"","계기번호":"26190315071","DCUID":"0026S31245","변대주":"","인입주":"","검침일":"","주소":"중구 퇴계로 227-2","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:30:87:88","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0026S31245","모뎀MAC":"44:B4:33:30:87:88"},{"지사":"전환","타입":"","계기번호":"02460045127","DCUID":"0025A38141","변대주":"","인입주":"","검침일":"","주소":"중구 퇴계로28길 7","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:10:2C:AD","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0025A38141","모뎀MAC":"44:B4:33:10:2C:AD"},{"지사":"전환","타입":"","계기번호":"79190701687","DCUID":"9925R36141","변대주":"","인입주":"","검침일":"","주소":"용산구 청파동2가 10-7","신주소":"","상호명":"","공동주택명":"","기존맥":"44:B4:33:30:B4:83","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9925R36141","모뎀MAC":"44:B4:33:30:B4:83"},{"지사":"전환","타입":"","계기번호":"01251219224","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 31-1","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:54:03:C7","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:54:03:C7"},{"지사":"전환","타입":"","계기번호":"02190151666","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 39","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:5B:A3:D6","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:5B:A3:D6"},{"지사":"전환","타입":"","계기번호":"02190163483","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 39","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:5B:A3:D6","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:5B:A3:D6"},{"지사":"전환","타입":"","계기번호":"07190111043","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 33-3","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:5B:A3:B7","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:5B:A3:B7"},{"지사":"전환","타입":"","계기번호":"56190072589","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 33-1","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:5B:A3:CB","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:5B:A3:CB"},{"지사":"전환","타입":"","계기번호":"58190023070","DCUID":"9725B61239","변대주":"","인입주":"","검침일":"","주소":"서대문구 신촌로 39","신주소":"","상호명":"","공동주택명":"","기존맥":"00:14:B0:54:10:69","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9725B61239","모뎀MAC":"00:14:B0:54:10:69"},{"지사":"전환","타입":"","계기번호":"58190029922","DCUID":"9924A19144","변대주":"","인입주":"","검침일":"","주소":"용산구 청파로43라길 36","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9924A19144","모뎀MAC":""},{"지사":"전환","타입":"","계기번호":"58190021173","DCUID":"9924A19144","변대주":"","인입주":"","검침일":"","주소":"용산구 청파로43라길 36","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9924A19144","모뎀MAC":""},{"지사":"전환","타입":"","계기번호":"25190124251","DCUID":"9924A19144","변대주":"","인입주":"","검침일":"","주소":"용산구 청파로43라길 36","신주소":"","상호명":"","공동주택명":"","기존맥":"","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9924A19144","모뎀MAC":""},{"지사":"전환","타입":"","계기번호":"26190464607","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190473847","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190466052","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190476466","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190466171","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190466077","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190469979","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"26190469980","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"45530079223","DCUID":"9627W74139","변대주":"","인입주":"","검침일":"","주소":"서대문구 증가로30길 69-5","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:47:EC","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9627W74139","모뎀MAC":"84:72:07:BE:47:EC"},{"지사":"전환","타입":"","계기번호":"24190237658","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190241005","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190246418","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190241357","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190248469","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190248344","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190248352","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190243186","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190248359","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190241363","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190246607","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190246593","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:AA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:AA"},{"지사":"전환","타입":"","계기번호":"24190248475","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190282430","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29:B4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29:B4"},{"지사":"전환","타입":"","계기번호":"24190282518","DCUID":"9628F57301","변대주":"","인입주":"","검침일":"","주소":"은평구 연서로20길 9-8","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:95:29섟 4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"9628F57301","모뎀MAC":"E0:AE:ED:95:29섟 4"},{"지사":"전환","타입":"","계기번호":"06190068047","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-20","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DF:3D:BF","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"84:72:07:DF:3D:BF"},{"지사":"전환","타입":"","계기번호":"35190435564","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-21","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:93:40:F1","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"E0:AE:ED:93:40:F1"},{"지사":"전환","타입":"","계기번호":"06190072856","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-24","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:98:FA","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"E0:AE:ED:91:98:FA"},{"지사":"전환","타입":"","계기번호":"06190075000","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-26","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DF:2E:D6","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"84:72:07:DF:2E:D6"},{"지사":"전환","타입":"","계기번호":"35190432573","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-28","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:93:44:7A","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"E0:AE:ED:93:44:7A"},{"지사":"전환","타입":"","계기번호":"06190064001","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-29","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:6C:78","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"E0:AE:ED:91:6C:78"},{"지사":"전환","타입":"","계기번호":"06190064019","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 658-29","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:65:1A","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"E0:AE:ED:91:65:1A"},{"지사":"전환","타입":"","계기번호":"74450082410","DCUID":"0230A55239","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-15","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DF:3A:76","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A55239","모뎀MAC":"84:72:07:DF:3A:76"},{"지사":"전환","타입":"","계기번호":"74450082546","DCUID":"0230A55239","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-15","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:90:35:C8","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A55239","모뎀MAC":"E0:AE:ED:90:35:C8"},{"지사":"전환","타입":"","계기번호":"93198042900","DCUID":"0230A55239","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-15","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:8B:1B","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A55239","모뎀MAC":"84:72:07:BE:8B:1B"},{"지사":"전환","타입":"","계기번호":"06190431273","DCUID":"0230A36130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-18","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:0E:38:EE","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A36130","모뎀MAC":"84:72:07:0E:38:EE"},{"지사":"전환","타입":"","계기번호":"06190081887","DCUID":"0230A45131","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-57","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DE:FE:01","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A45131","모뎀MAC":"84:72:07:DE:FE:01"},{"지사":"전환","타입":"","계기번호":"02190817407","DCUID":"0230A55239","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-92","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DE:FA:92","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A55239","모뎀MAC":"84:72:07:DE:FA:92"},{"지사":"전환","타입":"","계기번호":"06250037913","DCUID":"0230A55239","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 662-92","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:BE:87:96","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A55239","모뎀MAC":"84:72:07:BE:87:96"},{"지사":"전환","타입":"","계기번호":"06190429024","DCUID":"0230A37232","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-1","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:93:A7:8D","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A37232","모뎀MAC":"E0:AE:ED:93:A7:8D"},{"지사":"전환","타입":"","계기번호":"06190084534","DCUID":"0230A36130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-17","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:90:10:2D","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A36130","모뎀MAC":"E0:AE:ED:90:10:2D"},{"지사":"전환","타입":"","계기번호":"06190081920","DCUID":"0230A37232","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-2","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:B5:D7:EE","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A37232","모뎀MAC":"84:72:07:B5:D7:EE"},{"지사":"전환","타입":"","계기번호":"06190065438","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-41","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:92:3E:D9","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"E0:AE:ED:92:3E:D9"},{"지사":"전환","타입":"","계기번호":"06190072897","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-46","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:5E:F1","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"E0:AE:ED:91:5E:F1"},{"지사":"전환","타입":"","계기번호":"06190044465","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-52","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DF:04:F4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"84:72:07:DF:04:F4"},{"지사":"전환","타입":"","계기번호":"06190082486","DCUID":"0230A24230","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-53","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:5E:F4","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A24230","모뎀MAC":"E0:AE:ED:91:5E:F4"},{"지사":"전환","타입":"","계기번호":"06190065391","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-56","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:90:10:80","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"E0:AE:ED:90:10:80"},{"지사":"전환","타입":"","계기번호":"06190069555","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-56","신주소":"","상호명":"","공동주택명":"","기존맥":"E0:AE:ED:91:79:7C","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"E0:AE:ED:91:79:7C"},{"지사":"전환","타입":"","계기번호":"06190064857","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-62","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DE:FF:A9","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"84:72:07:DE:FF:A9"},{"지사":"전환","타입":"","계기번호":"06190065396","DCUID":"0230A34130","변대주":"","인입주":"","검침일":"","주소":"도봉구 창동 663-64","신주소":"","상호명":"","공동주택명":"","기존맥":"84:72:07:DF:32:B6","계기수량":"1","경간거리":"","인입구분":"","구":"","계약번호":"","고객명":"","민원중계내역":"","변대주명":"","검침원":"","검침원연락처":"","통신방식":"","기존DCUID":"0230A34130","모뎀MAC":"84:72:07:DF:32:B6"}];
+const BRANCHES = [...new Set(DATA.map(x => x.지사).filter(Boolean))];
+const DISTRICTS = [...new Set(DATA.map(x => x.구).filter(Boolean))].sort();
+const LEGACY_METER_IDS = new Set(["06190586336","06190584961","47199036670","02250015599","39190235639","06190045217","94199026082","47199036595","47199036581","47199036594","94199024572","94199023660","25190572398","39190235624","68190257337","37190400413","96190039677","26190332167","35190448014","35190447614","35190457479","47199029403","25191197078","05195617199","25190557668","07190288086","67190330603","06190046709","06190586421","35190209312","06190586201","06190085335","06190086550","94199025219","07190283849","07190287879","07190283943","07190287564","67190466327","68190212482","05195620232","67190335154","26190396477","06190044786","47199029215","05195612696","06250033215","05195613895","06190586352","05195609388","47199029041","96190020120","47199029044","06190042178","06190092553","02190516653","26190333430","37190070837","39190237301","48190244439","39190238974","39190240174","39190238866","25190569955","25190569957","25190594938","67190320724","25190603085","05195620136","25190557994","25190594955","39190237915","47199042759","25190572366","96190039527","35190201016","82190072027","82190072057","26190381744","89190025868","67190325544","67190050298","67190051453","67190052239","67190052214","48190244426","94199024152","05195613571","94199024076","94199023849","67190051341","67190052257","67190051827","67190051427","67190050290","05195620578","47199035385","25190602935","25190602879","82190072038","39190238959","67190320821","25190557096","96190020131","94199025169","94199025430","39190235033","94199024844","06190586799","97190024221","94199025052","39190237398","68190212882","94199024843","47199029027","39190237403","39190237654","67190073133","67190086094","25190569858","25190580927","96190020129","96190020046","82190071330","25190572362","25190557058","67190334707","06190076809","05195617069","67190323572","35190211456","06190045196","94199024229","96190037862","37190400016","02190488726","96190036153","96190036137","39190237182","39190236961","06190047454","06190093512","39190237273","67190323950","02190488725","47199029270","47199029045","47199029341","39190235857","25190566399","47199029363","47199029223","39190235198","96190020122","96190020125","06190587264","67190329796","47199032178","06190586349","26190389005","26190381686","26190397738","67190323947","06190073525","05195613697","06190075044","39190238990","94199026134","94199025636","67190067519","94199026589","06190075042","94199024820","06190038708","47199034198","68190255539","06190051808","47199041012","25191211468","47199036316","26190360331","94199024638","25191188981","97190020530","26190356977"]);
+const STATE_KEY = "ami-map-states-v20260823-2";
+const CACHE_KEY = "ami-map-geocache-v20260823-2";
+// 2026-09-03 광진성동지사 보류 일괄 반영용 주소 목록
+// 이 파일에 포함된 주소는 제외하고, 나머지 광진성동지사 마커를 한 번만 "보류"로 설정한다.
+const HOLD_EXCLUDE_OLD = new Set(["서울특별시 광진구 화양동 16-31", "서울특별시 광진구 화양동 16-44", "서울특별시 광진구 화양동 17-24", "서울특별시 광진구 화양동 17-25", "서울특별시 광진구 화양동 17-31", "서울특별시 광진구 화양동 17-38", "서울특별시 광진구 화양동 17-44", "서울특별시 광진구 화양동 17-67", "서울특별시 광진구 화양동 17-75", "서울특별시 광진구 화양동 17-92", "서울특별시 광진구 화양동 19-21", "서울특별시 광진구 화양동 19-28", "서울특별시 광진구 화양동 19-33", "서울특별시 광진구 화양동 19-40", "서울특별시 광진구 화양동 19-41", "서울특별시 광진구 화양동 19-52", "서울특별시 광진구 화양동 19-54", "서울특별시 광진구 화양동 19-8", "서울특별시 광진구 화양동 20-14", "서울특별시 광진구 화양동 20-16", "서울특별시 광진구 화양동 20-25", "서울특별시 광진구 화양동 20-30", "서울특별시 광진구 화양동 20-37", "서울특별시 광진구 화양동 23-14", "서울특별시 광진구 화양동 23-26", "서울특별시 광진구 화양동 24-10", "서울특별시 광진구 화양동 24-2", "서울특별시 광진구 화양동 24-21", "서울특별시 광진구 화양동 24-22", "서울특별시 광진구 화양동 31-11", "서울특별시 광진구 화양동 31-21", "서울특별시 광진구 화양동 31-27", "서울특별시 광진구 화양동 31-4", "서울특별시 광진구 화양동 31-57", "서울특별시 광진구 화양동 31-58", "서울특별시 광진구 화양동 31-59", "서울특별시 광진구 화양동 31-69", "서울특별시 광진구 화양동 32-6", "서울특별시 광진구 화양동 32-7", "서울특별시 광진구 화양동 33-14", "서울특별시 광진구 화양동 33-15", "서울특별시 광진구 화양동 33-21", "서울특별시 광진구 화양동 33-29", "서울특별시 광진구 화양동 33-3", "서울특별시 광진구 화양동 33-32", "서울특별시 광진구 화양동 33-5", "서울특별시 광진구 화양동 33-57", "서울특별시 광진구 화양동 33-62", "서울특별시 광진구 화양동 34-45", "서울특별시 광진구 화양동 34-47", "서울특별시 광진구 화양동 34-50", "서울특별시 광진구 화양동 35-18", "서울특별시 광진구 화양동 35-20", "서울특별시 광진구 화양동 35-21", "서울특별시 광진구 화양동 35-22", "서울특별시 광진구 화양동 35-23", "서울특별시 광진구 화양동 35-24", "서울특별시 광진구 화양동 35-42", "서울특별시 광진구 화양동 35-43", "서울특별시 광진구 화양동 35-56", "서울특별시 광진구 화양동 35-60", "서울특별시 광진구 화양동 36-2", "서울특별시 광진구 화양동 36-23", "서울특별시 광진구 화양동 36-35", "서울특별시 광진구 화양동 36-37", "서울특별시 광진구 화양동 36-4", "서울특별시 광진구 화양동 36-41", "서울특별시 광진구 화양동 36-79", "서울특별시 광진구 화양동 36-8", "서울특별시 광진구 화양동 36-92", "서울특별시 광진구 화양동 36-93", "서울특별시 광진구 화양동 36-94", "서울특별시 광진구 화양동 37-11", "서울특별시 광진구 화양동 37-13", "서울특별시 광진구 화양동 37-31", "서울특별시 광진구 화양동 37-36", "서울특별시 광진구 화양동 37-45", "서울특별시 광진구 화양동 37-51", "서울특별시 광진구 화양동 37-56", "서울특별시 광진구 화양동 37-75", "서울특별시 광진구 화양동 37-93", "서울특별시 광진구 화양동 41-1", "서울특별시 광진구 화양동 41-11", "서울특별시 광진구 화양동 44-73", "서울특별시 광진구 화양동 44-76", "서울특별시 광진구 화양동 45-42", "서울특별시 광진구 화양동 46-35", "서울특별시 광진구 화양동 46-39"]);
+const HOLD_EXCLUDE_NEW = new Set(["서울특별시 광진구 광나루로12길 11", "서울특별시 광진구 광나루로12길 19", "서울특별시 광진구 광나루로14길 17", "서울특별시 광진구 광나루로14길 21", "서울특별시 광진구 광나루로14길 21-1", "서울특별시 광진구 광나루로14길 23", "서울특별시 광진구 광나루로14길 27-3", "서울특별시 광진구 광나루로14길 30-8", "서울특별시 광진구 광나루로16길 21", "서울특별시 광진구 광나루로16길 22-4", "서울특별시 광진구 광나루로16길 25", "서울특별시 광진구 광나루로16길 7", "서울특별시 광진구 광나루로16길 8-4", "서울특별시 광진구 광나루로16길 9-10", "서울특별시 광진구 광나루로16길 9-3", "서울특별시 광진구 군자로7길 2-11", "서울특별시 광진구 군자로7길 2-12", "서울특별시 광진구 능동로13길 100-5", "서울특별시 광진구 능동로13길 101", "서울특별시 광진구 능동로13길 102", "서울특별시 광진구 능동로13길 105", "서울특별시 광진구 능동로13길 111", "서울특별시 광진구 능동로13길 78-4", "서울특별시 광진구 능동로13길 81", "서울특별시 광진구 능동로13길 81-1", "서울특별시 광진구 능동로13길 82", "서울특별시 광진구 능동로13길 87", "서울특별시 광진구 능동로13길 91-3", "서울특별시 광진구 능동로13길 91-5", "서울특별시 광진구 동일로 144-7", "서울특별시 광진구 동일로 170-6", "서울특별시 광진구 동일로 172-8", "서울특별시 광진구 동일로24길 19", "서울특별시 광진구 동일로24길 22-5", "서울특별시 광진구 동일로24길 37-4", "서울특별시 광진구 동일로24길 38-8", "서울특별시 광진구 동일로24길 47-3", "서울특별시 광진구 동일로24길 48-11", "서울특별시 광진구 동일로24길 48-6", "서울특별시 광진구 동일로26길 22", "서울특별시 광진구 동일로26길 34", "서울특별시 광진구 동일로26길 37", "서울특별시 광진구 동일로26길 47", "서울특별시 광진구 동일로26길 52", "서울특별시 광진구 동일로28길 33", "서울특별시 광진구 동일로28길 43-3", "서울특별시 광진구 동일로28길 6", "서울특별시 광진구 동일로30길 16", "서울특별시 광진구 동일로30길 22-6", "서울특별시 광진구 아차산로21길 54-22", "서울특별시 광진구 아차산로21길 60-16", "서울특별시 광진구 아차산로21길 60-6", "서울특별시 광진구 아차산로21길 64-9", "서울특별시 광진구 아차산로21길 77", "서울특별시 광진구 아차산로21길 78-10", "서울특별시 광진구 아차산로21길 87", "서울특별시 광진구 아차산로21길 89-3", "서울특별시 광진구 아차산로21길 99", "서울특별시 광진구 아차산로23길 23-3", "서울특별시 광진구 아차산로23길 47", "서울특별시 광진구 아차산로23길 48-3", "서울특별시 광진구 아차산로23길 58-10", "서울특별시 광진구 아차산로23길 58-12", "서울특별시 광진구 아차산로23길 58-6", "서울특별시 광진구 아차산로23길 64-5", "서울특별시 광진구 아차산로23길 68", "서울특별시 광진구 아차산로23길 73", "서울특별시 광진구 아차산로23길 75", "서울특별시 광진구 아차산로23길 77-3", "서울특별시 광진구 아차산로23길 83", "서울특별시 광진구 아차산로23길 84", "서울특별시 광진구 아차산로23길 85-8", "서울특별시 광진구 아차산로23길 91", "서울특별시 광진구 아차산로25길 48", "서울특별시 광진구 아차산로25길 50", "서울특별시 광진구 아차산로25길 51", "서울특별시 광진구 아차산로25길 52", "서울특별시 광진구 아차산로25길 54-3", "서울특별시 광진구 아차산로25길 55", "서울특별시 광진구 아차산로25길 56", "서울특별시 광진구 아차산로25길 57-3", "서울특별시 광진구 아차산로25길 76", "서울특별시 광진구 아차산로27길 54-3", "서울특별시 광진구 아차산로27길 57-4", "서울특별시 광진구 아차산로27길 57-6", "서울특별시 광진구 아차산로27길 60", "서울특별시 광진구 아차산로27길 64"]);
+const HOLD_MIGRATION_KEY = "ami-map-hold-migration-20260903-gj-sd";
+
+
+let map=null, geocoder=null, markerGroups=[], markerObjects=[];
+let selectedGroup=null, showingPendingOnly=false, currentLocationMarker=null, currentAccuracyCircle=null;
+let geoCache=loadJson(CACHE_KEY,{}), states=loadJson(STATE_KEY,{});
+let selectedBranches=new Set(BRANCHES);
+let selectedDistricts=new Set(DISTRICTS);
+let meterSearchQuery="";
+
+const $=id=>document.getElementById(id);
+function loadJson(k,f){try{return JSON.parse(localStorage.getItem(k)||"")||f}catch(e){return f}}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function fmt(v){const s=String(v??"").trim();return s?esc(s):"<span style='color:#b1b7be'>-</span>"}
+function normalizeAddress(a){
+  let s=String(a||"").replace(/\s+/g," ").trim();
+  s=s.replace(/서\s*울\s*특\s*별\s*시/g,"서울특별시");
+  s=s.replace(/(노\s*원|도\s*봉|은\s*평|서\s*대\s*문|마\s*포|중\s*랑|성\s*북)\s*구/g,"$1구");
+  s=s.replace(/(공\s*릉|방\s*학|홍\s*은|홍\s*제|연\s*희)\s*동/g,"$1동");
+  return s;
+}
+function todayMD(){const d=new Date();return `${d.getMonth()+1}/${d.getDate()}`}
+function workDateText(d){return d?`${d.split("/")[0]}월 ${d.split("/")[1]}일 작업`:"작업일 미기록"}
+function statusLabel(s){return s==="done"?"완료":s==="hold"?"보류":s==="bad"?"불가":"미처리"}
+function statusColor(s){return s==="done"?"#7b8794":s==="hold"?"#38bdf8":s==="bad"?"#ef4444":"#10b981"}
+function stateFor(group){
+  if(states[group.key])return states[group.key];
+  if(group.legacyKey&&states[group.legacyKey])return states[group.legacyKey];
+  return {status:"pending",reason:"",date:"",meters:{}};
+}
+function meterStateFor(group,meter){
+  const st=stateFor(group);
+  return (st.meters&&st.meters[String(meter.계기번호)])||{status:"pending",reason:""};
+}
+function saveMeterState(group,meter,status,reason=""){
+  const base=stateFor(group), key=group.key;
+  const next=Object.assign({},base,{meters:Object.assign({},base.meters||{})});
+  if(status==="pending") delete next.meters[String(meter.계기번호)];
+  else next.meters[String(meter.계기번호)]={status,reason,date:todayMD()};
+  states[key]=next; saveStates();
+}
+function saveStates(){localStorage.setItem(STATE_KEY,JSON.stringify(states))}
+
+function meterNumberHtml(n,group){
+  const s=String(n||"").trim();
+  if(s.length<2)return esc(s);
+  const last=s.slice(-2);
+  // 정확히 같은 주소(구주소 기준) 안에서만 끝 2자리 중복을 검사한다.
+  const currentAddress=normalizeAddress(group?.items?.find(x=>String(x.계기번호||"").trim()===s)?.주소||"");
+  const sameAddressItems=(group?.items||[]).filter(x=>normalizeAddress(x.주소||"")===currentAddress);
+  const sameSuffix=sameAddressItems.filter(x=>String(x.계기번호||"").trim().slice(-2)===last).length>1;
+  return `${esc(s.slice(0,-2))}<span class="${sameSuffix?"meter-last2":""}">${esc(last)}</span>`;
+}
+function dcuHtml(v){
+  const s=String(v||"").trim();
+  if(s.length<2)return esc(s);
+  const cut=Math.max(0,s.length-2);
+  return `${esc(s.slice(0,cut))}<span class="dcu-last2" style="color:#ef4444 !important;font-weight:900">${esc(s.slice(cut))}</span>`;
+}
+function makeMarkerImage(group){
+  const st=stateFor(group),color=statusColor(st.status);
+  // 근사 좌표가 포함된 마커는 계기 수량 대신 ?로 표시해 위치 확인이 필요함을 알린다.
+  const count=group.approximate?"?":(group.items.length>99?"99+":String(group.items.length));
+  const fs=count.length>2?7.5:9;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">
+  <path d="M13 1C6.5 1 1.7 6.2 1.7 12.6C1.7 20.5 13 33 13 33S24.3 20.5 24.3 12.6C24.3 6.2 19.5 1 13 1Z" fill="${color}" stroke="#fff" stroke-width="1.8"/>
+  <circle cx="13" cy="12.5" r="7.2" fill="#fff"/>
+  <text x="13" y="15.3" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fs}" font-weight="800" fill="${color}">${count}</text>
+  </svg>`;
+  return new kakao.maps.MarkerImage("data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg),new kakao.maps.Size(26,34),{offset:new kakao.maps.Point(13,33)});
+}
+function updateStats(){
+  let done=0,hold=0,bad=0,pending=0;
+  markerGroups.forEach(g=>{const s=stateFor(g).status;if(s==="done")done++;else if(s==="hold")hold++;else if(s==="bad")bad++;else pending++});
+  $("statusBadge").textContent=`계기 ${DATA.length} · 마커 ${markerGroups.length} · 미처리 ${pending}`;
+}
+function setProgress(done,total,text){$("progressText").textContent=text;$("progressBar").style.width=total?`${Math.round(done/total*100)}%`:"0%"}
+function showProgress(v){$("progress").classList.toggle("show",v)}
+
+function geocodeCandidates(address){
+  const raw=String(address||"").trim(),a=normalizeAddress(raw);
+  const out=[a,raw];
+  // 주소에 괄호로 함께 적힌 지번/도로명 주소를 따로 시도한다.
+  const paren=[...raw.matchAll(/[（(]([^）)]+)[）)]/g)].map(m=>m[1].trim());
+  out.push(...paren);
+  const base=normalizeAddress(raw.replace(/[（(][^）)]*[）)]/g,"").trim());
+  out.push(base);
+  // 상세 번지 변환이 실패하면 도로명/동 단위 주소로 낮춰 근처의 참고 좌표를 찾는다.
+  const roadBase=base.replace(/\s+\d+(?:-\d+)?\s*$/,"").trim();
+  if(roadBase!==base)out.push(roadBase);
+  const dongBase=base.replace(/\s+\d+(?:-\d+)?\s*$/,"").replace(/\s+[가-힣0-9·]+(?:로|길|대로)[가-힣0-9·]*\s*\d*(?:-\d+)?\s*$/,"").trim();
+  if(dongBase!==base&&dongBase!==roadBase)out.push(dongBase);
+  return [...new Set(out)].filter(Boolean);
+}
+function searchAddressCoordinate(q){
+  return new Promise(resolve=>{
+    geocoder.addressSearch(q,(result,status)=>{
+      if(status===kakao.maps.services.Status.OK&&result&&result[0]){
+        resolve({lat:Number(result[0].y),lng:Number(result[0].x),road:result[0].road_address?.address_name||"",place:result[0].address_name||""});
+      }else resolve(null);
+    });
+  });
+}
+function geocodeOne(address){
+  return new Promise(async resolve=>{
+    const raw=String(address||"").trim(),a=normalizeAddress(raw);
+    const cached=geoCache[a]||geoCache[raw];
+    if(cached)return resolve(cached);
+    const candidates=geocodeCandidates(raw);
+    // 먼저 전체 주소를 시도한다. 전체 주소가 안 될 때만 근사 좌표를 사용한다.
+    for(let i=0;i<candidates.length;i++){
+      const p=await searchAddressCoordinate(candidates[i]);
+      if(p){
+        p.approximate=i>1;
+        geoCache[a]=p;localStorage.setItem(CACHE_KEY,JSON.stringify(geoCache));
+        return resolve(p);
+      }
+    }
+    resolve(null);
+  });
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+async function geocodeAll(){
+  const unique=[...new Set(DATA.map(x=>normalizeAddress(x.주소)).filter(Boolean))];
+  let done=0,failed=0,approximate=0;showProgress(true);
+  for(const address of unique){
+    if(!geoCache[address]){
+      const p=await geocodeOne(address);
+      if(!p)failed++;else if(p.approximate)approximate++;
+      await sleep(110);
+    } else if(geoCache[address].approximate) approximate++;
+    done++;
+    setProgress(done,unique.length,`${done}/${unique.length} 주소 변환 완료${approximate?` · 근사 ${approximate}`:""}${failed?` · 실패 ${failed}`:""}`);
+  }
+  showProgress(false);buildGroups();
+}
+function applyGwangjinSeongdongHoldMigration(){
+  if(localStorage.getItem(HOLD_MIGRATION_KEY)==="1")return;
+  let changed=0;
+  for(const g of markerGroups){
+    const hasGwangjinSeongdong=g.items.some(x=>String(x.지사||"").trim()==="광진성동지사");
+    if(!hasGwangjinSeongdong)continue;
+
+    // 업로드한 파일에 있는 주소가 하나라도 포함된 마커는 제외한다.
+    const excluded=g.items.some(x=>{
+      const oldAddr=normalizeAddress(x.주소||"");
+      const newAddr=normalizeAddress(x.신주소||"");
+      return HOLD_EXCLUDE_OLD.has(oldAddr)||HOLD_EXCLUDE_NEW.has(newAddr);
+    });
+    if(excluded)continue;
+
+    const base=stateFor(g);
+    states[g.key]=Object.assign({},base,{
+      status:"hold",
+      reason:"",
+      date:todayMD(),
+      meters:Object.assign({},base.meters||{})
+    });
+    changed++;
+  }
+  saveStates();
+  localStorage.setItem(HOLD_MIGRATION_KEY,"1");
+  console.log("광진성동지사 보류 반영:",changed,"개 마커");
+}
+
+function buildGroups(){
+  const byCoord=new Map();
+  for(const item of DATA){
+    if(!selectedBranches.has(item.지사))continue;
+    if(item.구 && !selectedDistricts.has(item.구))continue;
+    const p=geoCache[normalizeAddress(item.주소)];
+    if(!p)continue;
+    const key=`${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+    if(!byCoord.has(key))byCoord.set(key,{key,lat:p.lat,lng:p.lng,items:[],approximate:false});
+    const group=byCoord.get(key);
+    group.items.push(item);
+    if(p.approximate)group.approximate=true;
+  }
+  markerGroups=[...byCoord.values()];
+  markerGroups.forEach(g=>{
+    g.items.sort((a,b)=>String(a.계기번호).localeCompare(String(b.계기번호)));
+    const oldItems=g.items.filter(x=>LEGACY_METER_IDS.has(String(x.계기번호)));
+    g.legacyKey=oldItems.length?oldItems.map(x=>x.계기번호).sort().join("|"):"";
+  });
+  applyGwangjinSeongdongHoldMigration();
+  renderMarkers();updateStats();
+}
+function renderMarkers(){
+  markerObjects.forEach(m=>m.setMap(null));markerObjects=[];
+  const bounds=new kakao.maps.LatLngBounds();
+  for(const g of markerGroups){
+    const st=stateFor(g);
+    if(showingPendingOnly&&st.status!=="pending")continue;
+    const marker=new kakao.maps.Marker({map,position:new kakao.maps.LatLng(g.lat,g.lng),image:makeMarkerImage(g),title:g.approximate?"근사 좌표 - 위치 확인 필요":`${g.items.length}개`});
+    marker.addListener("click",()=>openDetail(g));markerObjects.push(marker);bounds.extend(marker.getPosition());
+  }
+  if(markerObjects.length&&!showingPendingOnly)map.setBounds(bounds);
+}
+function refreshGroupMarker(g){
+  const target=markerObjects.find(m=>Math.abs(m.getPosition().getLat()-g.lat)<1e-9&&Math.abs(m.getPosition().getLng()-g.lng)<1e-9);
+  if(target)target.setImage(makeMarkerImage(g));else renderMarkers();updateStats();
+}
+
+function uniqueText(values){
+  return [...new Set(values.map(v=>String(v||"").trim()).filter(Boolean))];
+}
+function addressCopyText(g,kind){
+  const x=g.items[0]||{};
+  return kind==="old"?String(x.주소||""):String(x.신주소||"");
+}
+function dcuBarHtml(g){
+  const vals=uniqueText(g.items.map(x=>x.DCUID));
+  const dcu=vals[0]||"";
+  const copyValue=dcu.slice(0,8);
+  return `<div class="dcu-bar"><span class="dcu-number">${dcuHtml(dcu)}</span><button type="button" class="copy dcu-copy" data-dcu-copy="${esc(copyValue)}">복사</button></div>`;
+}
+function meterExtraHtml(x){
+  const base=`<div class="meter-extra">
+    기존맥 ${fmt(x.기존맥)} · 계기수량 ${fmt(x.계기수량)} · 검침일 ${fmt(x.검침일)} ·
+    변대주 ${fmt(x.변대주)} · 인입주 ${fmt(x.인입주)} · 경간거리 ${fmt(x.경간거리)} · 인입구분 ${fmt(x.인입구분)}
+  </div>`;
+  if(x.지사==="민원") return base+`<div class="complaint-extra">
+    계약번호 ${fmt(x.계약번호)} · 고객명 ${fmt(x.고객명)} · 민원중계내역 ${fmt(x.민원중계내역)} ·
+    변대주명 ${fmt(x.변대주명)} · 검침일 ${fmt(x.검침일)} · 검침원 ${fmt(x.검침원)} ·
+    검침원연락처 ${fmt(x.검침원연락처)} · 통신방식 ${fmt(x.통신방식)}
+  </div>`;
+  if(x.지사==="전환") return base+`<div class="transition-extra">
+    기존 DCU ID ${fmt(x.기존DCUID || x.DCUID)} · 모뎀 MAC ${fmt(x.모뎀MAC || x.기존맥)}
+  </div>`;
+  return base;
+}
+function renderMeterCards(){
+  if(!selectedGroup)return;
+  const q=String(meterSearchQuery||"").trim().toLowerCase();
+  const items=selectedGroup.items.filter(x=>!q||String(x.계기번호||"").toLowerCase().includes(q));
+  if(!items.length){$("meterList").innerHTML='<div class="no-meter">검색 결과가 없습니다.</div>';return}
+  $("meterList").innerHTML=items.map(x=>{
+    const ms=meterStateFor(selectedGroup,x);
+    const bad=ms.status==="bad";
+    return `<article class="meter-card ${bad?"is-meter-bad":""}">
+      <div class="meter-top">
+        <input class="meter-check" type="checkbox" aria-label="계기 선택" data-meter-check="${esc(x.계기번호)}">
+        <span class="type">${esc(String(x.타입||"").replace(/타입/g,""))}</span>
+        <div class="meter-num">${meterNumberHtml(x.계기번호,selectedGroup)}</div>
+        <button type="button" class="copy" data-copy="${esc(x.계기번호)}">복사</button>
+        <button class="meter-bad ${bad?"on":""}" data-meter-bad="${esc(x.계기번호)}">${bad?"불가":"불가"}</button>
+      </div>
+      <div class="meter-home">${fmt(x.공동주택명)}</div>
+      ${meterExtraHtml(x)}
+    </article>`;
+  }).join("");
+}
+function openDetail(g){
+  selectedGroup=g;
+  meterSearchQuery="";
+  const st=stateFor(g),common=g.items[0]||{};
+  $("detailTitle").textContent=common.주소||"주소";
+  $("detailAddress").textContent=common.신주소||"";
+  $("oldAddrCopy").dataset.copy=String(common.주소||"");
+  $("newAddrCopy").dataset.copy=String(common.신주소||"");
+  $("oldAddrCopy").style.visibility=common.주소?"visible":"hidden";
+  $("newAddrCopy").style.visibility=common.신주소?"visible":"hidden";
+  $("statusText").textContent=statusLabel(st.status);
+  $("workDate").textContent=workDateText(st.date);
+  $("meterCountText").textContent=`${g.items.length}개`;
+  $("reasonInput").value=st.reason||"";
+  $("reasonBox").classList.toggle("show",st.status==="bad");
+  $("filterbarText").innerHTML=dcuBarHtml(g);
+  $("meterSearchInput").value="";
+  renderMeterCards();
+  $("detailOverlay").classList.add("show");
+}
+function closeDetail(){$("detailOverlay").classList.remove("show");selectedGroup=null;meterSearchQuery=""}
+
+async function copyText(text){
+  const value=String(text??"");
+  if(!value){toast("복사할 내용이 없습니다");return false}
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(value);
+      toast("복사했습니다");
+      return true;
+    }
+  }catch(e){}
+  try{
+    const ta=document.createElement("textarea");
+    ta.value=value;
+    ta.setAttribute("readonly","");
+    ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+    document.body.appendChild(ta);
+    ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand("copy");
+    ta.remove();
+    if(ok){toast("복사했습니다");return true}
+  }catch(e){}
+  toast("복사에 실패했습니다");
+  return false;
+}
+function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>$("toast").classList.remove("show"),1300)}
+function applyStatus(status,reason=""){
+  if(!selectedGroup)return;
+  const key=selectedGroup.key,old=stateFor(selectedGroup);
+  const next=(old.status===status&&status!=="pending")?"pending":status;
+  states[key]={status:next,reason:next==="bad"?reason:"",date:next==="pending"?"":todayMD(),meters:old.meters||{}};
+  saveStates();refreshGroupMarker(selectedGroup);closeDetail();
+}
+function searchData(q){
+  q=String(q||"").trim().toLowerCase();
+  if(q.length<2){toast("2자 이상 입력하세요");return}
+  const g=markerGroups.find(g=>g.items.some(x=>[x.계기번호,x.주소,x.신주소,x.DCUID,x.상호명,x.공동주택명,x.구].some(v=>String(v||"").toLowerCase().includes(q))));
+  if(!g){toast("검색 결과가 없습니다");return}
+  map.setCenter(new kakao.maps.LatLng(g.lat,g.lng));map.setLevel(3);openDetail(g);$("searchBox").classList.remove("open");
+}
+function moveToCurrent(){
+  if(!navigator.geolocation){toast("위치 기능을 지원하지 않습니다");return}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude,loc=new kakao.maps.LatLng(lat,lng);
+    if(currentLocationMarker)currentLocationMarker.setMap(null);
+    if(currentAccuracyCircle)currentAccuracyCircle.setMap(null);
+    currentLocationMarker=new kakao.maps.Marker({map,position:loc});
+    currentAccuracyCircle=new kakao.maps.Circle({map,center:loc,radius:Math.max(pos.coords.accuracy||30,20),strokeWeight:1,strokeColor:"#3b82f6",strokeOpacity:.7,fillColor:"#3b82f6",fillOpacity:.12});
+    map.setCenter(loc);map.setLevel(3);toast("현재 위치로 이동했습니다");
+  },()=>toast("위치 권한을 허용해 주세요"),{enableHighAccuracy:true,timeout:10000,maximumAge:10000});
+}
+function openNav(kind){
+  if(!selectedGroup)return;
+  const {lat,lng}=selectedGroup;
+  if(kind==="kakao")location.href=`https://map.kakao.com/link/map/AMI,${lat},${lng}`;
+  if(kind==="naver")location.href=`https://map.naver.com/p/directions/-/${lng},${lat}`;
+  if(kind==="tmap")location.href=`https://apis.openapi.sk.com/tmap/app/routes?name=AMI&lon=${lng}&lat=${lat}`;
+}
+function openDrawer(){$("drawer").classList.add("open");$("drawerScrim").classList.add("open")}
+function closeDrawer(){$("drawer").classList.remove("open");$("drawerScrim").classList.remove("open")}
+function renderBranchChecks(){
+  $("branchChecks").innerHTML=BRANCHES.map(b=>`<label class="branch-check"><input type="checkbox" data-branch="${esc(b)}" ${selectedBranches.has(b)?"checked":""}> ${esc(b)}</label>`).join("");
+  $("branchChecks").querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{
+    if(i.checked)selectedBranches.add(i.dataset.branch);else selectedBranches.delete(i.dataset.branch);
+    $("branchSelectedText").textContent=selectedBranches.size===BRANCHES.length?"전체 지사":([...selectedBranches][0]||"선택 없음");
+    buildGroups();
+  }));
+}
+function renderDistrictChecks(){
+  $("districtChecks").innerHTML=DISTRICTS.map(d=>`<label class="branch-check"><input type="checkbox" data-district="${esc(d)}" ${selectedDistricts.has(d)?"checked":""}> ${esc(d)}</label>`).join("");
+  $("districtChecks").querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{
+    if(i.checked)selectedDistricts.add(i.dataset.district);else selectedDistricts.delete(i.dataset.district);
+    buildGroups();
+  }));
+}
+function renderBranchModal(){
+  $("branchPanel").innerHTML=BRANCHES.map(b=>`<div class="branchItem" data-branch="${esc(b)}"><span>${esc(b)}</span><span class="radio ${selectedBranches.has(b)?"on":""}"></span></div>`).join("");
+  $("branchPanel").querySelectorAll(".branchItem").forEach(el=>el.onclick=()=>{
+    const b=el.dataset.branch;selectedBranches=new Set([b]);$("branchSelectedText").textContent=b;renderBranchChecks();$("branchModal").classList.remove("show");buildGroups();
+  });
+}
+function initUI(){
+  $("filterbarText").textContent="DCUID";
+  renderBranchChecks();renderDistrictChecks();renderBranchModal();
+  $("menuBtn").onclick=openDrawer;$("drawerClose").onclick=closeDrawer;$("drawerScrim").onclick=closeDrawer;
+  $("branchSelect").onclick=()=>$("branchModal").classList.add("show");
+  $("listBtn").onclick=()=>$("branchModal").classList.add("show");
+  $("branchModal").onclick=e=>{if(e.target===$("branchModal"))$("branchModal").classList.remove("show")};
+  $("searchBtn").onclick=()=>{$("searchBox").classList.toggle("open");if($("searchBox").classList.contains("open"))$("searchInput").focus()};
+  $("searchGo").onclick=()=>searchData($("searchInput").value);
+  $("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")searchData(e.target.value)});
+  $("locationBtn").onclick=moveToCurrent;$("detailClose").onclick=closeDetail;
+  $("doneBtn").onclick=()=>applyStatus("done");
+  $("holdBtn").onclick=()=>applyStatus("hold");
+  $("badBtn").onclick=()=>{
+    if(!selectedGroup)return;
+    const old=stateFor(selectedGroup);
+    if(old.status==="bad"){applyStatus("bad","");return}
+    $("reasonBox").classList.add("show");$("reasonInput").focus();
+  };
+  $("reasonSave").onclick=()=>{const r=$("reasonInput").value.trim();if(!r){toast("불가 사유를 입력해 주세요");return}applyStatus("bad",r)};
+  $("oldAddrCopy").onclick=e=>copyText(e.currentTarget.dataset.copy||"");
+  $("newAddrCopy").onclick=e=>{const v=e.currentTarget.dataset.copy||"";if(v)copyText(v);else toast("신주소가 없습니다")};
+  // DCUID 복사 버튼은 상세 화면의 filterbar 안에 있으므로 별도 이벤트를 연결한다.
+  $("filterbarText").addEventListener("click",e=>{
+    const b=e.target.closest("[data-dcu-copy]");
+    if(!b)return;
+    e.preventDefault();
+    e.stopPropagation();
+    copyText(b.dataset.dcuCopy||"");
+  });
+  $("meterSearchInput").addEventListener("input",e=>{meterSearchQuery=e.target.value;renderMeterCards()});
+  $("meterSearchClear").onclick=()=>{$("meterSearchInput").value="";meterSearchQuery="";renderMeterCards()};
+  $("meterList").addEventListener("click",e=>{
+    const b=e.target.closest("[data-copy]");if(b){e.stopPropagation();copyText(b.dataset.copy);return}
+    const bad=e.target.closest("[data-meter-bad]");
+    if(bad&&selectedGroup){
+      e.stopPropagation();
+      const meter=selectedGroup.items.find(x=>String(x.계기번호)===String(bad.dataset.meterBad));
+      if(!meter)return;
+      const ms=meterStateFor(selectedGroup,meter);
+      if(ms.status==="bad"){saveMeterState(selectedGroup,meter,"pending");toast("계기 불가를 초기화했습니다")}
+      else{
+        const reason=window.prompt("불가 사유를 입력하세요","")||"";
+        saveMeterState(selectedGroup,meter,"bad",reason);
+        toast("계기를 불가 처리했습니다");
+      }
+      renderMeterCards();
+    }
+  });
+  $("refreshBtn").onclick=()=>{buildGroups();toast("완료 현황을 새로고침했습니다");closeDrawer()};
+  $("resetAllBtn").onclick=()=>{if(confirm("저장된 완료/보류/불가 상태를 모두 초기화할까요?")){states={};saveStates();renderMarkers();updateStats();toast("전체 작업상태를 초기화했습니다");closeDrawer()}};
+  $("logoutBtn").onclick=()=>toast("이 파일에서는 로그아웃 기능을 사용하지 않습니다");
+  $("tmapBtn").onclick=()=>openNav("tmap");$("naverBtn").onclick=()=>openNav("naver");$("kakaoBtn").onclick=()=>openNav("kakao");
+}
+function initKakao(){
+  if(!KAKAO_JS_KEY||KAKAO_JS_KEY.includes("여기에_카카오")){
+    $("statusBadge").textContent="카카오 JavaScript 키를 설정해 주세요";
+    showProgress(true);$("progressText").textContent="index.html의 KAKAO_JS_KEY에 JavaScript 키를 입력하세요.";return;
+  }
+  kakao.maps.load(()=>{
+    map=new kakao.maps.Map($("map"),{center:new kakao.maps.LatLng(37.6659,127.0283),level:4});
+    geocoder=new kakao.maps.services.Geocoder();geocodeAll();
+  });
+}
+initUI();
+(function loadKakao(){
+  const s=document.createElement("script");
+  s.src=`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(KAKAO_JS_KEY)}&libraries=services&autoload=false`;
+  s.onload=initKakao;
+  s.onerror=()=>{$("statusBadge").textContent="카카오 지도 SDK를 불러오지 못했습니다";showProgress(true);$("progressText").textContent="JavaScript 키와 GitHub Pages 도메인 등록을 확인하세요."};
+  document.head.appendChild(s);
+})();
+</script>
+
+</body>
+</html>
